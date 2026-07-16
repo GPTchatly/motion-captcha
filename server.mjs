@@ -11,6 +11,7 @@ import {
 } from './lib/server-runtime.mjs';
 
 const projectDirectory = resolve(fileURLToPath(new URL('./', import.meta.url)));
+const loopbackBindHosts = new Set(['localhost', '127.0.0.1', '::1']);
 const resources = Object.freeze({
   publicDirectory: resolve(projectDirectory, 'public'),
   protectedIndexPath: resolve(projectDirectory, 'protected/index.html'),
@@ -21,11 +22,19 @@ const resources = Object.freeze({
 
 export async function startMotionCaptchaServer({
   env = process.env,
-  host = '0.0.0.0',
+  host = '127.0.0.1',
   port = parsePort(env.PORT ?? '3000'),
-  publicHostname = host === '0.0.0.0' || host === '::' ? 'localhost' : host,
+  publicHostname = host === '0.0.0.0' || host === '::'
+    ? 'localhost'
+    : host === '::1'
+      ? '[::1]'
+      : host,
   onChallengeCreated
 } = {}) {
+  if (env.NODE_ENV !== 'production' && !loopbackBindHosts.has(host)) {
+    throw new Error('Non-production server binding is restricted to loopback hosts.');
+  }
+
   let state = null;
   const needsDynamicDevelopmentOrigin = port === 0 && !env.PUBLIC_ORIGIN && env.NODE_ENV !== 'production';
 
