@@ -8,7 +8,8 @@ The motion-defined CAPTCHA with browser-only verification with a 30-second, one-
 ## Run
 
 ```bash
-npm start
+npm i #to install zod
+npm start # or node server.mjs
 ```
 
 Open:
@@ -17,10 +18,7 @@ Open:
 http://localhost:3000
 ```
 
-No npm installation is required. Runtime code uses Node.js built-in modules only.
-
-For an explicit production origin allowlist:
-
+For prod:
 ```bash
 ALLOWED_ORIGINS=https://app.example.com npm start #Multiple origins may be comma-separated
 ```
