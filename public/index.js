@@ -82,8 +82,13 @@ restartButton.addEventListener('click', async () => {
       },
       body: '{}'
     });
+    const result = await response.json().catch(() => null);
 
     if (!response.ok) {
+      if (result?.code === 'csrf_invalid') {
+        csrfToken = null;
+      }
+
       throw new Error('Logout request was rejected.');
     }
 

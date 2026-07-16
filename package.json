@@ -1,13 +1,13 @@
 {
-  "name": "neocaptcha-motion-reconstruction",
+  "name": "motion-captcha",
   "version": "1.3.1",
   "private": true,
   "type": "module",
-  "description": "An unofficial motion-defined CAPTCHA study with a 30-second server-authoritative challenge lifecycle.",
+  "description": "Motion-CAPTCHA with a 30-second server-authoritative challenge lifecycle.",
   "scripts": {
     "start": "node server.mjs",
-    "check": "node --check server.mjs && node --check lib/security-core.mjs && node --check public/app.js && node --check public/challenge-timer.js && node --check public/index.js",
-    "test": "node tests/security-core.test.mjs && node tests/challenge-timer.test.mjs && node tests/server-integration.test.mjs",
+    "check": "node --check server.mjs && node --check lib/security-core.mjs && node --check lib/bounded-state.mjs && node --check lib/ephemeral-mask.mjs && node --check lib/http-security.mjs && node --check lib/cookie-security.mjs && node --check lib/request-schemas.mjs && node --check lib/server-runtime.mjs && node --check lib/server-http.mjs && node --check lib/server-api.mjs && node --check lib/server-router.mjs && node --check public/app.js && node --check public/captcha-api.js && node --check public/captcha-protocol.js && node --check public/captcha-view.js && node --check public/challenge-timer.js && node --check public/index.js && node --check public/motion-model.js && node --check public/motion-renderer.js",
+    "test": "node tests/security-core.test.mjs && node tests/http-security.test.mjs && node tests/challenge-timer.test.mjs && node tests/public-surface.test.mjs && node tests/server-integration.test.mjs",
     "validate": "npm run check && npm test"
   },
   "engines": {
