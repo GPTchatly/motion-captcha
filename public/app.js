@@ -540,7 +540,7 @@ class MotionCaptcha {
       'aria-label',
       'Animated CAPTCHA challenge. Loading ordering instructions.'
     );
-    this.showStatus('Loading a new one-time challenge…', 'neutral', 0);
+    this.showStatus('Loading a new one-time challenge…', 'neutral');
 
     try {
       const csrfToken = await this.ensureSecurityContext();
@@ -603,10 +603,18 @@ class MotionCaptcha {
       }
 
       console.error('Unable to load challenge.', error);
+      if (error instanceof Error && error.message === 'csrf_invalid') {
+        this.csrfToken = null;
+      }
       this.loading = false;
       this.expired = true;
       this.setInteractionState();
-      this.showStatus('Challenge could not be loaded. Use refresh to retry.', 'error', 0);
+      const message = error instanceof Error && ['rate_limited', 'quota_exhausted'].includes(error.message)
+        ? 'Challenge limit reached. Wait before requesting another challenge.'
+        : error instanceof Error && error.message === 'service_busy'
+          ? 'The challenge service is at capacity. Try again shortly.'
+          : 'Challenge could not be loaded. Use New challenge to retry.';
+      this.showStatus(message, 'error');
       this.canvas.dispatchEvent(new CustomEvent('motioncaptcha:error', { bubbles: true }));
     }
   }
@@ -664,8 +672,7 @@ class MotionCaptcha {
   }
 
   getVisualElapsedSeconds(now) {
-    const effectiveNow = this.freezeInput.checked && this.frozenAt !== null ? this.frozenAt : now;
-    return Math.max(0, effectiveNow - this.visualStartedAt) / 1000;
+    return Math.max(0, now - this.visualStartedAt) / 1000;
   }
 
   getEpochIndex(elapsedSeconds) {
@@ -674,18 +681,17 @@ class MotionCaptcha {
   }
 
   renderFrame(now) {
-    const shouldFreeze = this.freezeInput.checked;
     const elapsedSeconds = this.getVisualElapsedSeconds(now);
     const epochIndex = this.getEpochIndex(elapsedSeconds);
     const rawDeltaSeconds = Math.max(0, now - this.lastFrameAt) / 1000;
-    const deltaSeconds = shouldFreeze ? 0 : Math.min(rawDeltaSeconds, 0.05);
+    const deltaSeconds = Math.min(rawDeltaSeconds, 0.05);
     this.lastFrameAt = now;
 
     this.updateTimer();
 
     if (!this.loading && !this.expired) {
       for (const object of this.objects) {
-        object.update(deltaSeconds, elapsedSeconds, this.objectSpeed, epochIndex);
+        object.update(deltaSeconds, elapsedSeconds, DEFAULT_OBJECT_SPEED, epochIndex);
       }
     }
 
@@ -701,7 +707,7 @@ class MotionCaptcha {
     const remaining = remainingChallengeMs(this.expiresAt);
     const progress = challengeProgress(this.expiresAt, this.issuedAt);
     this.timerValueElement.textContent = formatRemainingTime(remaining);
-    this.timerBarElement.style.transform = `scaleX(${progress})`;
+    this.timerBarElement.value = progress;
     const isWarning = remaining > 0 && remaining <= 10_000;
     this.timerRegionElement.classList.toggle('is-warning', isWarning);
     this.timerBarElement.classList.toggle('is-warning', isWarning);
@@ -729,10 +735,10 @@ class MotionCaptcha {
     this.timerBarElement.classList.remove('is-warning');
     this.timerBarElement.classList.add('is-expired');
     this.timerValueElement.textContent = '0.0s';
-    this.timerBarElement.style.transform = 'scaleX(0)';
+    this.timerBarElement.value = 0;
     this.updateSelectionReadout();
     this.setInteractionState();
-    this.showStatus('Challenge expired after 30 seconds. Refresh to try again.', 'error', 0);
+    this.showStatus('Challenge expired after 30 seconds. Use New challenge to try again.', 'error');
     this.canvas.dispatchEvent(
       new CustomEvent('motioncaptcha:expire', {
         bubbles: true,
@@ -762,10 +768,6 @@ class MotionCaptcha {
     sceneContext.fillStyle = 'rgb(142 142 146 / 0.06)';
     sceneContext.fillRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
 
-    if (this.debugInput.checked) {
-      this.drawDebugOutlines(sceneContext);
-    }
-
     this.drawSelectionMarkers(sceneContext);
     sceneContext.restore();
     this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
@@ -777,7 +779,7 @@ class MotionCaptcha {
 
     for (let index = 0; index < BACKGROUND_BAND_COUNT; index += 1) {
       const profile = bands[index];
-      const travel = elapsedSeconds * this.backgroundSpeed * profile.speedScale;
+      const travel = elapsedSeconds * DEFAULT_BACKGROUND_SPEED * profile.speedScale;
       const wobble = Math.sin(elapsedSeconds * profile.frequency * Math.PI * 2 + profile.phase) * profile.wobbleAmplitude;
       const offsetX = travel * profile.directionX + wobble;
       const offsetY = travel * profile.directionY + Math.cos(elapsedSeconds * profile.frequency + profile.phase) * profile.wobbleAmplitude;
@@ -814,7 +816,7 @@ class MotionCaptcha {
     layerContext.clearRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
     layerContext.globalCompositeOperation = 'source-over';
 
-    const textureTravel = elapsedSeconds * this.foregroundSpeed;
+    const textureTravel = elapsedSeconds * DEFAULT_FOREGROUND_SPEED;
     const textureOffsetX = object.texturePhaseX + textureTravel * object.textureDirectionX;
     const textureOffsetY = object.texturePhaseY + textureTravel * object.textureDirectionY;
     this.drawTiledTexture(layerContext, foregroundTexture, textureOffsetX, textureOffsetY);
@@ -823,27 +825,6 @@ class MotionCaptcha {
     layerContext.drawImage(object.mask.canvas, Math.round(object.x), Math.round(object.y));
     layerContext.restore();
     this.sceneContext.drawImage(this.objectLayer, 0, 0);
-  }
-
-  drawDebugOutlines(context) {
-    context.save();
-    context.lineWidth = 1.5;
-    context.setLineDash([5, 4]);
-
-    for (const object of this.objects) {
-      context.strokeStyle = object.selected ? 'rgb(22 124 71 / 0.95)' : 'rgb(255 255 255 / 0.88)';
-      context.strokeRect(
-        Math.round(object.x) + 0.5,
-        Math.round(object.y) + 0.5,
-        object.mask.width,
-        object.mask.height
-      );
-      context.globalAlpha = 0.55;
-      context.drawImage(object.mask.canvas, Math.round(object.x), Math.round(object.y));
-      context.globalAlpha = 1;
-    }
-
-    context.restore();
   }
 
   drawSelectionMarkers(context) {
@@ -891,7 +872,7 @@ class MotionCaptcha {
     const object = hits[0];
 
     if (!object) {
-      this.showStatus('Click directly on one of the moving characters.', 'error', 850);
+      this.showStatus('Click directly on one of the moving characters.', 'error');
       return;
     }
 
@@ -905,7 +886,10 @@ class MotionCaptcha {
     }
 
     if (this.selectedObjects.length >= this.selectionLimit) {
-      this.showStatus('Two items are already selected. Click one again to remove it.', 'error', 1100);
+      this.showStatus(
+        `${this.selectionLimit} items are already selected. Click one again to remove it.`,
+        'error'
+      );
       return;
     }
 
@@ -936,20 +920,23 @@ class MotionCaptcha {
     }
 
     if (this.selectedObjects.length !== this.selectionLimit) {
-      this.showStatus(`Select exactly ${this.selectionLimit} characters first.`, 'error', 1200);
+      this.showStatus(`Select exactly ${this.selectionLimit} characters first.`, 'error');
       return;
     }
 
     this.submitting = true;
     this.setInteractionState();
-    this.showStatus('Verifying the one-time challenge…', 'neutral', 0);
+    this.showStatus('Verifying the one-time challenge…', 'neutral');
 
     try {
       const response = await fetch(`/api/challenges/${encodeURIComponent(this.challengeId)}/verify`, {
         method: 'POST',
         cache: 'no-store',
         credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': await this.ensureSecurityContext()
+        },
         body: JSON.stringify({
           selectedIds: this.selectedObjects.map((object) => object.id),
           nextPath: this.nextPath
@@ -965,12 +952,19 @@ class MotionCaptcha {
           return;
         }
 
+        if (result.code === 'csrf_invalid') {
+          this.csrfToken = null;
+        }
+
         const message = result.code === 'rate_limited'
-          ? 'Too many attempts. Wait briefly, then refresh.'
-          : result.code === 'origin_mismatch'
-            ? 'Verification origin did not match this page.'
-            : 'Incorrect selection or order. Loading a new challenge…';
-        this.showStatus(message, 'error', result.code === 'rate_limited' ? 0 : 1300);
+          ? 'Too many attempts. Wait briefly, then request a new challenge.'
+          : result.code === 'service_busy'
+            ? 'Verification succeeded, but the session service is at capacity. Request a new challenge shortly.'
+            : result.code === 'origin_mismatch' || result.code === 'csrf_invalid'
+              ? 'The request security context was rejected. Request a new challenge.'
+              : 'The selection was not accepted. Request a new challenge to try again.';
+        this.expired = true;
+        this.showStatus(message, 'error');
         this.canvas.dispatchEvent(
           new CustomEvent('motioncaptcha:error', {
             bubbles: true,
@@ -978,20 +972,14 @@ class MotionCaptcha {
           })
         );
 
-        if (result.code !== 'rate_limited') {
-          this.loading = true;
-          this.setInteractionState();
-          window.setTimeout(() => void this.generateChallenge(), 1300);
-        } else {
-          this.setInteractionState();
-        }
+        this.setInteractionState();
         return;
       }
 
       this.completed = true;
       this.submitting = false;
       this.setInteractionState();
-      this.showStatus('Verified. Redirecting…', 'success', 0);
+      this.showStatus('Verified. Redirecting…', 'success');
       this.canvas.dispatchEvent(
         new CustomEvent('motioncaptcha:complete', {
           bubbles: true,
@@ -1007,7 +995,7 @@ class MotionCaptcha {
       this.submitting = false;
       this.expired = true;
       this.setInteractionState();
-      this.showStatus('Verification outcome is unknown. Refresh for a new challenge.', 'error', 0);
+      this.showStatus('Verification outcome is unknown. Request a new challenge.', 'error');
       this.canvas.dispatchEvent(new CustomEvent('motioncaptcha:error', { bubbles: true }));
     }
   }
@@ -1039,8 +1027,7 @@ class MotionCaptcha {
     );
   }
 
-  showStatus(message, type, duration) {
-    window.clearTimeout(this.statusTimer);
+  showStatus(message, type) {
     this.messageElement.textContent = message;
     this.messageElement.classList.remove('is-success', 'is-error', 'is-neutral');
     this.messageElement.classList.add(
@@ -1048,13 +1035,9 @@ class MotionCaptcha {
       type === 'success' ? 'is-success' : type === 'error' ? 'is-error' : 'is-neutral'
     );
 
-    if (duration > 0) {
-      this.statusTimer = window.setTimeout(() => this.hideStatus(), duration);
-    }
   }
 
   hideStatus() {
-    window.clearTimeout(this.statusTimer);
     this.messageElement.classList.remove('is-visible', 'is-success', 'is-error', 'is-neutral');
     this.messageElement.textContent = '';
   }
@@ -1082,14 +1065,6 @@ const elements = {
   submitButton: document.getElementById('submit-button'),
   fallbackButton: document.getElementById('fallback-button'),
   fallbackDialog: document.getElementById('fallback-dialog'),
-  backgroundSpeedInput: document.getElementById('background-speed'),
-  backgroundSpeedOutput: document.getElementById('background-speed-output'),
-  foregroundSpeedInput: document.getElementById('foreground-speed'),
-  foregroundSpeedOutput: document.getElementById('foreground-speed-output'),
-  objectSpeedInput: document.getElementById('glyph-speed'),
-  objectSpeedOutput: document.getElementById('glyph-speed-output'),
-  freezeInput: document.getElementById('freeze-toggle'),
-  debugInput: document.getElementById('debug-toggle')
 };
 
 if (Object.values(elements).some((element) => element === null)) {
@@ -1097,19 +1072,6 @@ if (Object.values(elements).some((element) => element === null)) {
 }
 
 const motionCaptcha = new MotionCaptcha(elements);
-
-function bindRange(input, output, suffix) {
-  const update = () => {
-    output.textContent = `${input.value} ${suffix}`;
-  };
-
-  input.addEventListener('input', update);
-  update();
-}
-
-bindRange(elements.backgroundSpeedInput, elements.backgroundSpeedOutput, 'px/s');
-bindRange(elements.foregroundSpeedInput, elements.foregroundSpeedOutput, 'px/s');
-bindRange(elements.objectSpeedInput, elements.objectSpeedOutput, 'px/s');
 
 elements.refreshButton.addEventListener('click', () => void motionCaptcha.generateChallenge());
 elements.submitButton.addEventListener('click', () => void motionCaptcha.submit());

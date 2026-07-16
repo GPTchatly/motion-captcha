@@ -1,6 +1,8 @@
 const verifiedState = document.getElementById('verified-state');
 const expiryValue = document.getElementById('verified-expiry');
 const restartButton = document.getElementById('restart-captcha');
+const CSRF_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}\.[A-Za-z0-9_-]{43}$/;
+let csrfToken = null;
 
 if (!verifiedState || !expiryValue || !restartButton) {
   throw new Error('The protected page is missing one or more required elements.');
@@ -13,8 +15,24 @@ function redirectToCaptcha() {
   window.location.replace(challengeUrl);
 }
 
+async function loadSecurityContext() {
+  const response = await fetch('/api/security-context', {
+    method: 'GET',
+    cache: 'no-store',
+    credentials: 'same-origin'
+  });
+  const data = await response.json().catch(() => null);
+
+  if (!response.ok || !data || !CSRF_TOKEN_PATTERN.test(data.csrfToken ?? '')) {
+    throw new Error('Unable to establish a request security context.');
+  }
+
+  csrfToken = data.csrfToken;
+}
+
 async function loadSession() {
   try {
+    await loadSecurityContext();
     const response = await fetch('/api/session', {
       method: 'GET',
       cache: 'no-store',
@@ -26,9 +44,9 @@ async function loadSession() {
       return;
     }
 
-    const session = await response.json();
+    const session = await response.json().catch(() => null);
 
-    if (!session.authenticated || !Number.isFinite(session.expiresAt)) {
+    if (!session || session.authenticated !== true || !Number.isFinite(session.expiresAt)) {
       redirectToCaptcha();
       return;
     }
@@ -50,17 +68,32 @@ restartButton.addEventListener('click', async () => {
   restartButton.disabled = true;
 
   try {
-    await fetch('/api/logout', {
+    if (!CSRF_TOKEN_PATTERN.test(csrfToken ?? '')) {
+      await loadSecurityContext();
+    }
+
+    const response = await fetch('/api/logout', {
       method: 'POST',
       cache: 'no-store',
       credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRF-Token': csrfToken
+      },
       body: '{}'
     });
-  } finally {
+
+    if (!response.ok) {
+      throw new Error('Logout request was rejected.');
+    }
+
     const challengeUrl = new URL('/captcha.html', window.location.origin);
     challengeUrl.searchParams.set('next', '/index.html');
     window.location.assign(challengeUrl);
+  } catch (error) {
+    console.error('Unable to close the protected session.', error);
+    restartButton.disabled = false;
+    restartButton.textContent = 'Try again';
   }
 });
 

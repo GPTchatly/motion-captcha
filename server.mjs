@@ -458,6 +458,13 @@ async function handleChallengeVerification(request, response, state, challengeId
     return;
   }
 
+  const availableChallenge = state.challenges.get(routeValidation.data.challengeId);
+
+  if (availableChallenge && availableChallenge.visitorId !== security.context.visitorId) {
+    sendJson(response, state, 403, { success: false, code: 'visitor_mismatch' });
+    return;
+  }
+
   const challenge = state.challenges.take(routeValidation.data.challengeId);
   const result = verifyChallengeSelection({
     challenge,
