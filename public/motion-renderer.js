@@ -3,14 +3,17 @@ import {
   clamp,
   createCanvas,
   DEFAULT_BACKGROUND_SPEED,
-  DEFAULT_FOREGROUND_SPEED,
+  DEFAULT_FOREGROUND_DRIFT_SPEED,
   DEFAULT_OBJECT_SPEED,
   LOGICAL_HEIGHT,
   LOGICAL_WIDTH,
+  MAX_BACKGROUND_SPEED_SCALE,
+  MIN_BACKGROUND_SPEED_SCALE,
   modulo,
+  normalizeVector,
   NoiseTextureFactory,
   SeededRandom
-} from './motion-model.js';
+} from './motion-model.js?v=1.3.1-phase-lock-v2';
 
 export class MotionRenderer {
   constructor(canvas) {
@@ -71,14 +74,18 @@ export class MotionRenderer {
       const random = new SeededRandom(this.epochSeeds[boundedIndex].motion);
       const profiles = Array.from({ length: BACKGROUND_BAND_COUNT }, (_, index) => {
         const mostlyVertical = index % 2 === 0;
+        const direction = normalizeVector(
+          random.sign() * random.between(mostlyVertical ? 0.06 : 0.38, mostlyVertical ? 0.28 : 0.78),
+          random.sign() * random.between(mostlyVertical ? 0.7 : 0.18, mostlyVertical ? 1.16 : 0.55)
+        );
 
         return {
-          directionX: random.sign() * random.between(mostlyVertical ? 0.06 : 0.38, mostlyVertical ? 0.28 : 0.78),
-          directionY: random.sign() * random.between(mostlyVertical ? 0.7 : 0.18, mostlyVertical ? 1.16 : 0.55),
-          speedScale: random.between(0.72, 1.22),
+          directionX: direction.x,
+          directionY: direction.y,
+          speedScale: random.between(MIN_BACKGROUND_SPEED_SCALE, MAX_BACKGROUND_SPEED_SCALE),
           phase: random.between(0, Math.PI * 2),
-          frequency: random.between(0.45, 1.05),
-          wobbleAmplitude: random.between(4, 13)
+          frequency: random.between(0.32, 0.72),
+          wobbleAmplitude: random.between(2, 7)
         };
       });
       this.bandProfileCache.set(boundedIndex, profiles);
@@ -179,13 +186,15 @@ export class MotionRenderer {
     layerContext.clearRect(0, 0, LOGICAL_WIDTH, LOGICAL_HEIGHT);
     layerContext.globalCompositeOperation = 'source-over';
 
-    const textureTravel = elapsedSeconds * DEFAULT_FOREGROUND_SPEED;
-    const textureOffsetX = object.texturePhaseX + textureTravel * object.textureDirectionX;
-    const textureOffsetY = object.texturePhaseY + textureTravel * object.textureDirectionY;
+    const renderedX = Math.round(object.x);
+    const renderedY = Math.round(object.y);
+    const textureTravel = elapsedSeconds * DEFAULT_FOREGROUND_DRIFT_SPEED;
+    const textureOffsetX = object.texturePhaseX - renderedX + textureTravel * object.textureDirectionX;
+    const textureOffsetY = object.texturePhaseY - renderedY + textureTravel * object.textureDirectionY;
     this.drawTiledTexture(layerContext, foregroundTexture, textureOffsetX, textureOffsetY);
 
     layerContext.globalCompositeOperation = 'destination-in';
-    layerContext.drawImage(object.mask.canvas, Math.round(object.x), Math.round(object.y));
+    layerContext.drawImage(object.mask.canvas, renderedX, renderedY);
     layerContext.restore();
     this.sceneContext.drawImage(this.objectLayer, 0, 0);
   }

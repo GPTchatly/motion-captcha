@@ -2,8 +2,8 @@ import { isChallengeExpired } from './challenge-timer.js';
 import { CaptchaApi } from './captcha-api.js';
 import { TARGET_GLYPH_COUNT, sanitizeNextPath } from './captcha-protocol.js';
 import { CaptchaView } from './captcha-view.js';
-import { LOGICAL_HEIGHT, LOGICAL_WIDTH, MotionObject } from './motion-model.js';
-import { MotionRenderer } from './motion-renderer.js';
+import { LOGICAL_HEIGHT, LOGICAL_WIDTH, MotionObject } from './motion-model.js?v=1.3.1-phase-lock-v2';
+import { MotionRenderer } from './motion-renderer.js?v=1.3.1-phase-lock-v2';
 
 class MotionCaptcha {
   constructor(elements) {
@@ -48,6 +48,8 @@ class MotionCaptcha {
     this.completed = false;
     this.expired = false;
     this.challengeId = null;
+    this.issuedAt = 0;
+    this.expiresAt = 0;
     this.orderMode = null;
     this.promptSequence = [];
     this.objects = [];

@@ -2,10 +2,12 @@ import { decodeAlpha4, MASK_ENCODING_ALPHA4 } from './captcha-protocol.js';
 
 export const LOGICAL_WIDTH = 416;
 export const LOGICAL_HEIGHT = 250;
-export const DEFAULT_BACKGROUND_SPEED = 300;
-export const DEFAULT_FOREGROUND_SPEED = 48;
+export const DEFAULT_BACKGROUND_SPEED = 260;
+export const DEFAULT_FOREGROUND_DRIFT_SPEED = 8;
 export const DEFAULT_OBJECT_SPEED = 46;
 export const BACKGROUND_BAND_COUNT = 6;
+export const MIN_BACKGROUND_SPEED_SCALE = 0.9;
+export const MAX_BACKGROUND_SPEED_SCALE = 1.1;
 
 const TEXTURE_WIDTH = 384;
 const TEXTURE_HEIGHT = 384;
@@ -58,6 +60,16 @@ export function clamp(value, minimum, maximum) {
 
 export function modulo(value, modulus) {
   return ((value % modulus) + modulus) % modulus;
+}
+
+export function normalizeVector(x, y) {
+  const magnitude = Math.hypot(x, y);
+
+  if (magnitude < 0.0001) {
+    return { x: 1, y: 0 };
+  }
+
+  return { x: x / magnitude, y: y / magnitude };
 }
 
 function rotateVector(x, y, radians) {
@@ -145,14 +157,14 @@ export class NoiseTextureFactory {
       [222, 216, 201]
     ];
 
-    for (let index = 0; index < 14_000; index += 1) {
+    for (let index = 0; index < 9_000; index += 1) {
       const [red, green, blue] = random.pick(palette);
       const x = random.between(-5, TEXTURE_WIDTH + 5);
       const y = random.between(-5, TEXTURE_HEIGHT + 5);
       const angle = random.between(-Math.PI, Math.PI);
-      const length = random.between(1.1, 5.8);
-      const width = random.between(0.45, 1.7);
-      const opacity = random.between(0.12, 0.55);
+      const length = random.between(1.6, 7.2);
+      const width = random.between(0.55, 1.9);
+      const opacity = random.between(0.14, 0.52);
 
       context.beginPath();
       context.moveTo(x, y);
@@ -165,7 +177,7 @@ export class NoiseTextureFactory {
     context.globalAlpha = 0.28;
     context.fillStyle = '#d2d0cf';
 
-    for (let index = 0; index < 900; index += 1) {
+    for (let index = 0; index < 600; index += 1) {
       const x = random.integer(0, TEXTURE_WIDTH - 1);
       const y = random.integer(0, TEXTURE_HEIGHT - 1);
       const radius = random.between(0.4, 1.7);
@@ -183,7 +195,7 @@ export class NoiseTextureFactory {
       throw new Error('Unable to create a softened texture context.');
     }
 
-    softenedContext.filter = 'blur(0.55px) contrast(108%) saturate(78%)';
+    softenedContext.filter = 'blur(0.42px) contrast(106%) saturate(76%)';
     softenedContext.drawImage(canvas, 0, 0);
     softenedContext.filter = 'none';
     softenedContext.fillStyle = 'rgb(142 142 145 / 0.08)';
@@ -208,8 +220,12 @@ export class MotionObject {
     this.speedScale = this.initialSpeed / DEFAULT_OBJECT_SPEED;
     this.texturePhaseX = configuration.texturePhaseX;
     this.texturePhaseY = configuration.texturePhaseY;
-    this.textureDirectionX = configuration.textureDirectionX;
-    this.textureDirectionY = configuration.textureDirectionY;
+    const textureDirection = normalizeVector(
+      configuration.textureDirectionX,
+      configuration.textureDirectionY
+    );
+    this.textureDirectionX = textureDirection.x;
+    this.textureDirectionY = textureDirection.y;
     this.random = new SeededRandom(configuration.turnSeed);
     this.nextTurnAt = this.random.between(1.2, 2.7);
     this.lastEpochIndex = 0;
