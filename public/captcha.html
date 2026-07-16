@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Unofficial educational reconstruction of a motion-defined random-texture CAPTCHA."
+    />
+    <title>Motion-CAPTCHA · Verification</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23fff'/%3E%3Cpath d='M16 40c3 8 14 11 22 6 5-3 8-8 8-14h-8l12-12 12 12h-8c0 10-5 19-13 24-13 8-30 3-37-10l12-6Zm32-16c-3-8-14-11-22-6-5 3-8 8-8 14h8L14 44 2 32h8c0-10 5-19 13-24 13-8 30-3 37 10l-12 6Z' fill='%23111111'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="./styles.css?v=1.3.1-security" />
+  </head>
+  <body class="captcha-page">
+    <header class="app-header">
+      <div class="app-header__inner">
+        <span class="wordmark" aria-label="Motion-CAPTCHA">Motion-CAPTCHA</span>
+        <span class="app-header__section">Motion study</span>
+        <span class="app-header__policy">30-second challenge · one attempt</span>
+      </div>
+    </header>
+
+    <main class="page-shell">
+      <section class="workspace" aria-labelledby="page-title">
+        <div class="workspace-heading">
+          <h1 id="page-title">Verification</h1>
+          <p>Find the four requested glyphs among eight moving characters, then submit them in order.</p>
+        </div>
+
+        <div class="workspace-grid">
+          <article class="challenge-panel" aria-label="Motion CAPTCHA challenge">
+            <header class="challenge-panel__header">
+              <div>
+                <h2>Challenge</h2>
+                <p class="instruction" id="captcha-instruction">Loading challenge instructions…</p>
+              </div>
+
+              <div class="challenge-timer" id="challenge-timer" role="timer" aria-live="off">
+                <div class="challenge-timer__copy">
+                  <span>Time remaining</span>
+                  <output id="challenge-timer-value">30.0s</output>
+                </div>
+              </div>
+            </header>
+
+            <progress
+              class="challenge-timer__bar"
+              id="challenge-timer-bar"
+              max="1"
+              value="1"
+              aria-label="Challenge time remaining"
+            ></progress>
+
+            <div class="canvas-shell" id="canvas-shell">
+              <canvas
+                id="captcha-canvas"
+                width="416"
+                height="250"
+                aria-label="Animated CAPTCHA challenge. Loading ordering instructions."
+              ></canvas>
+              <div class="canvas-message" id="canvas-message" role="status" aria-live="polite"></div>
+            </div>
+
+            <footer class="challenge-panel__footer">
+              <div class="selection-readout" aria-live="polite">
+                <span class="selection-readout__label">Selection</span>
+                <span class="selection-readout__value" id="selection-value">0 / 4</span>
+              </div>
+
+              <div class="captcha-controls">
+                <button class="secondary-button refresh-button" id="refresh-button" type="button" aria-label="Generate a new challenge">
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path
+                      d="M19.14 7.5A8 8 0 0 0 5.2 5.15L3.5 3.45V9h5.55L7.16 7.11A5.3 5.3 0 0 1 16.62 9H19.4c-.08-.51-.17-1.01-.26-1.5ZM4.86 16.5A8 8 0 0 0 18.8 18.85l1.7 1.7V15h-5.55l1.89 1.89A5.3 5.3 0 0 1 7.38 15H4.6c.08.51.17 1.01.26 1.5Z"
+                    />
+                  </svg>
+                  <span>New challenge</span>
+                </button>
+
+                <button class="submit-button" id="submit-button" type="button" disabled>Verify</button>
+              </div>
+
+              <button class="fallback-link" id="fallback-button" type="button">Need an accessible option?</button>
+            </footer>
+          </article>
+
+          <aside class="study-sidebar" aria-label="Challenge guidance">
+            <section class="sidebar-section" aria-labelledby="guidance-title">
+              <h2 id="guidance-title">Complete the challenge</h2>
+              <ol class="instruction-list">
+                <li>Watch for the four requested letters or digits among eight moving glyphs.</li>
+                <li>Select each requested glyph in the exact order shown above the challenge.</li>
+                <li>Verify once before the server timer reaches zero.</li>
+              </ol>
+            </section>
+
+            <section class="sidebar-section" aria-labelledby="boundary-title">
+              <h2 id="boundary-title">Verification boundary</h2>
+              <dl class="boundary-list">
+                <div>
+                  <dt>Challenge</dt>
+                  <dd>30 seconds</dd>
+                </div>
+                <div>
+                  <dt>Submission</dt>
+                  <dd>One attempt</dd>
+                </div>
+                <div>
+                  <dt>Session</dt>
+                  <dd>15 minutes</dd>
+                </div>
+              </dl>
+            </section>
+
+          </aside>
+        </div>
+      </section>
+    </main>
+
+    <dialog class="fallback-dialog" id="fallback-dialog">
+      <form method="dialog" class="fallback-dialog__card">
+        <h2>Accessibility options</h2>
+        <p>
+          The visual challenge is intentionally motion-heavy. A production deployment should offer a separately
+          protected email-code or WebAuthn path for people who cannot use it. This replica validates each
+          30-second challenge once on the server and grants access through an HttpOnly session cookie.
+        </p>
+        <button class="secondary-button" value="close">Close</button>
+      </form>
+    </dialog>
+
+    <script type="module" src="./app.js?v=1.3.1-security"></script>
+  </body>
+</html>

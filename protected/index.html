@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en" class="access-pending">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Example destination page unlocked after completing the motion CAPTCHA study challenge."
+    />
+    <title>Motion-CAPTCHA · Verified Destination</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%23fff'/%3E%3Cpath d='M16 40c3 8 14 11 22 6 5-3 8-8 8-14h-8l12-12 12 12h-8c0 10-5 19-13 24-13 8-30 3-37-10l12-6Zm32-16c-3-8-14-11-22-6-5 3-8 8-8 14h8L14 44 2 32h8c0-10 5-19 13-24 13-8 30-3 37 10l-12 6Z' fill='%23111111'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="./styles.css?v=1.3.1-ui" />
+  </head>
+  <body class="destination-page">
+    <header class="app-header">
+      <div class="app-header__inner">
+        <span class="wordmark" aria-label="Motion-CAPTCHA">Motion-CAPTCHA</span>
+        <span class="app-header__section">Protected destination</span>
+        <span class="app-header__policy">Server-verified session</span>
+      </div>
+    </header>
+
+    <main class="destination-shell">
+      <section class="destination-content" id="verified-state" hidden>
+        <header class="destination-heading">
+          <div class="destination-heading__icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24">
+              <path d="m9.2 16.6-4.4-4.4 1.8-1.8 2.6 2.6 8.2-8.2 1.8 1.8-10 10Z" />
+            </svg>
+          </div>
+          <div>
+            <h1>Access granted</h1>
+            <p>
+              The motion challenge was verified by the server. This route now represents the protected
+              application content.
+            </p>
+          </div>
+        </header>
+
+        <dl class="verification-details">
+          <div>
+            <dt>Verification boundary</dt>
+            <dd id="verified-boundary">HttpOnly server session</dd>
+          </div>
+          <div>
+            <dt>Session expires</dt>
+            <dd id="verified-expiry">Loading…</dd>
+          </div>
+        </dl>
+
+        <div class="destination-actions">
+          <a class="primary-link-button" href="#demo-content">View protected content</a>
+          <button class="secondary-button" id="restart-captcha" type="button">Run CAPTCHA again</button>
+        </div>
+
+        <section class="demo-content" id="demo-content" aria-labelledby="demo-content-title">
+          <h2 id="demo-content-title">Example protected content</h2>
+          <p>
+            Replace this section with the real application page. Access to this route is now enforced by the
+            Node.js server using an expiring HttpOnly cookie rather than a browser-editable storage record.
+          </p>
+        </section>
+      </section>
+    </main>
+
+    <script type="module" src="./index.js?v=1.3.1-security"></script>
+  </body>
+</html>
