@@ -90,4 +90,7 @@ The suite covers:
 - `SECURITY_NOTES.md`: threat model and deployment limitations.
 - `analysis/`: original frame-difference artifacts plus a mask-variant preview.
 
+## Attribution
+DejaVu/Bitstream attribution for the generated glyph atlas
+
 
