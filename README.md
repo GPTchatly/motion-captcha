@@ -2,7 +2,7 @@
 
 The motion-defined CAPTCHA with browser-only verification with a 30-second, one-attempt, server-authoritative flow.
 <p align="center">
-  <img src="./motion-captcha.mp4" alt="motion captcha" width="800" />
+  <img src="./motion-captcha.gif" alt="motion captcha" width="800" />
 </p>
 
 ## Run
